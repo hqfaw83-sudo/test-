@@ -12,9 +12,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airpodsprobe.healthtest
         SWIFT_VERSION: '5.0'
+        MARKETING_VERSION: '1.1.0'
+        CURRENT_PROJECT_VERSION: '2'
+        INFOPLIST_KEY_CFBundleDisplayName: 聆听宇宙
         TARGETED_DEVICE_FAMILY: '1'
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSHealthShareUsageDescription: 读取耳机音量记录，用于验证聆听时长统计。
+        INFOPLIST_KEY_NSHealthShareUsageDescription: 读取耳机音频音量记录，在本机统计 AirPods 今日、近七天和历史累计聆听时长。
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: 本应用不写入健康数据。
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
     entitlements:
