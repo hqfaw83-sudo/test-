@@ -388,4 +388,3 @@ extension View {
             .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
     }
 }
-

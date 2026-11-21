@@ -41,7 +41,7 @@ jobs:
           xcrun simctl status_bar "$DEVICE" override --time '9:41' --batteryState charged --batteryLevel 100
           xcrun simctl ui "$DEVICE" appearance light
           xcrun simctl launch "$DEVICE" com.airpodsprobe.healthtest --ui-preview
-          sleep 4
+          sleep 8
           xcrun simctl io "$DEVICE" screenshot preview-light.png
           xcrun simctl ui "$DEVICE" appearance dark
           sleep 2
@@ -54,6 +54,7 @@ jobs:
           xcrun simctl launch "$DEVICE" com.airpodsprobe.healthtest --ui-preview --preview-devices
           sleep 2
           xcrun simctl io "$DEVICE" screenshot preview-devices.png
+          swift verify_previews.swift
       - uses: actions/upload-artifact@v4
         with:
           name: Interface-previews
