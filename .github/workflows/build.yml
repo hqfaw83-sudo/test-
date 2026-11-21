@@ -13,7 +13,9 @@ jobs:
       - name: Install project generator
         run: brew install xcodegen
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: |
+          python3 download_artwork.py
+          xcodegen generate
       - name: Verify listening calculations
         run: python3 check_math.py
       - name: Compile unsigned device app
@@ -24,6 +26,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO build
       - name: Package IPA
         run: |
+          python3 check_assets.py
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/AirPodsHealthProbe.app Payload/
           /usr/bin/ditto -c -k --keepParent Payload AirPodsHealthProbe-unsigned.ipa

@@ -368,7 +368,8 @@ struct GlassSettings: View {
                     Text("仅计入可识别为 AirPods 的耳机音频记录，合并重叠时间，跨日按本地日历拆分。佩戴但没有音频的时间可能无法记录。").font(.caption)
                     Text("排除其他耳机或无法识别设备的记录：\(health.report.excluded) 条").font(.caption)
                     Text("健康记录、照片、心情均在本机处理，不上传。").font(.caption).foregroundColor(ice)
-                    Text("聆听时光 1.3.1 · 玻璃版").font(.caption).foregroundColor(.secondary)
+                    Link("Apple 官方产品图片来源", destination: URL(string: "https://www.apple.com/airpods/compare/")!).font(.caption)
+                    Text("聆听时光 1.3.2 · 官方素材版").font(.caption).foregroundColor(.secondary)
                 }
             }.navigationTitle("外观与设置").navigationBarTitleDisplayMode(.inline)
         }.preferredColorScheme(.dark)

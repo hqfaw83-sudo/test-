@@ -1,0 +1,54 @@
+{
+  "sourcePages": [
+    "https://www.apple.com/airpods/compare/",
+    "https://support.apple.com/en-mide/docs/airpods/300145"
+  ],
+  "copyright": "Product images: Apple Inc. Original PNG files, used in this personal application.",
+  "assets": [
+    {
+      "file": "apple-airpods2.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_2gen_white__benan2ckzxyq_large.png",
+      "sha256": "bf2e5e2b3446684dfec168bfbc6226e09ad83ffe9cadcd338562dd55e2a66e7b"
+    },
+    {
+      "file": "apple-airpods3.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_3gen_white__car4z3m37ss2_large.png",
+      "sha256": "737cec22a30496e1654794cd9bd4a686505ab71755cac084b1bb3fdbe5f1dc3e"
+    },
+    {
+      "file": "apple-airpods4.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_4gen_white__birryy2mcf6u_large.png",
+      "sha256": "87026311e1e7e50574a016904a43e5cee2eeea921691bd2214ea5d6d875fbb74"
+    },
+    {
+      "file": "apple-airpods5.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_5gen_white__dn7wechaouwm_large.png",
+      "sha256": "dfa8ab2588fb3b0c579d0d6ee8dd247db285fec840be764aef22c54883bf6b5e"
+    },
+    {
+      "file": "apple-airpods5-wireless.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_5gen_opened__gfck8awjjcia_large.png",
+      "sha256": "c406797febf3e58243bd86141bca136a7f9dfee2e3c8be6978838375f40c69c2"
+    },
+    {
+      "file": "apple-pro2.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_pro_white__cd2arklqu16q_large.png",
+      "sha256": "f6a27d240cf0f44c1c4aabd001da68580df4a073d613bc20e5e072eda845feea"
+    },
+    {
+      "file": "apple-pro3.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_pro_3_white__doiqzzyvwxyu_large.png",
+      "sha256": "3f05c91ded251365eca87e25a96e88814b5a8de08045a070b792ef70bd8a617b"
+    },
+    {
+      "file": "apple-max.png",
+      "url": "https://www.apple.com/v/airpods/compare/k/images/overview/airpods_max_starlight__eic4xluae0ya_large.png",
+      "sha256": "0c1dd0bbd71a86c0ec8b4c16e3162b456e264ae6c3ca796b3c12f173f5479826"
+    },
+    {
+      "file": "apple-pro1.png",
+      "url": "https://cdsassets.apple.com/content/services/pub/image?productid=300145&size=240x240",
+      "sha256": "8f3a2c5dcbe56ca09f877e686214dc2a20c91d32053cb76c7f305dbbd519e59f"
+    }
+  ]
+}
