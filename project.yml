@@ -1,0 +1,23 @@
+name: AirPodsHealthProbe
+options:
+  bundleIdPrefix: com.airpodsprobe
+  deploymentTarget:
+    iOS: '16.0'
+targets:
+  AirPodsHealthProbe:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.airpodsprobe.healthtest
+        SWIFT_VERSION: '5.0'
+        TARGETED_DEVICE_FAMILY: '1'
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSHealthShareUsageDescription: 读取耳机音量记录，用于验证聆听时长统计。
+        INFOPLIST_KEY_NSHealthUpdateUsageDescription: 本应用不写入健康数据。
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    entitlements:
+      path: HealthProbe.entitlements
+      properties:
+        com.apple.developer.healthkit: true
