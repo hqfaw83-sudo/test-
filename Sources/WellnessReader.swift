@@ -43,6 +43,7 @@ final class WellnessReader: ObservableObject {
     @Published var readings: [String: MetricReading] = [:]
     @Published var sleep: SleepEpisode?
     @Published var sleepHistory: [MetricPoint] = []
+    @Published var nightReadings: [String: [MetricPoint]] = [:]
     @Published var firstWatchRecord: Date?
     @Published var watchRecordName: String?
     @Published var busy = false
@@ -90,7 +91,7 @@ final class WellnessReader: ObservableObject {
         guard requested else { return }
         guard !busy else { pending = true; return }
         busy = true; completed = 0; expected = metrics.reduce(0) { $0 + ($1.cumulative ? 1 : 2) } + 2
-        readings = [:]; sleep = nil; sleepHistory = []; firstWatchRecord = nil; watchRecordName = nil
+        readings = [:]; sleep = nil; sleepHistory = []; nightReadings = [:]; firstWatchRecord = nil; watchRecordName = nil
         let calendar = Calendar.current, now = Date(), today = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .day, value: -89, to: today)!
         for metric in metrics {
@@ -130,17 +131,45 @@ final class WellnessReader: ObservableObject {
     }
     private func readSleep(start: Date, now: Date) {
         guard let type = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { finish(); return }
-        let query = HKSampleQuery(sampleType: type, predicate: HKQuery.predicateForSamples(withStart: start, end: now), limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, samples, _ in
-            let pieces = (samples as? [HKCategorySample] ?? []).map { sample in
-                SleepPiece(start: sample.startDate, end: min(now, sample.endDate), stage: sample.value, source: sample.sourceRevision.source.name + " · " + sample.sourceRevision.source.bundleIdentifier, watch: sample.device?.model?.localizedCaseInsensitiveContains("Watch") == true || sample.sourceRevision.productType?.hasPrefix("Watch") == true)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: now)
+        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, samples, _ in
+            let categories: [HKCategorySample] = samples as? [HKCategorySample] ?? []
+            var pieces: [SleepPiece] = []
+            for sample in categories {
+                let source = sample.sourceRevision.source
+                let sourceKey = source.name + " · " + source.bundleIdentifier
+                let watchModel = sample.device?.model?.localizedCaseInsensitiveContains("Watch") ?? false
+                let watchProduct = sample.sourceRevision.productType?.hasPrefix("Watch") ?? false
+                let piece = SleepPiece(start: sample.startDate, end: min(now, sample.endDate), stage: sample.value, source: sourceKey, watch: watchModel || watchProduct)
+                pieces.append(piece)
             }
             let episodes = WellnessMath.primarySleep(pieces)
             let recent = episodes.last { $0.end >= now.addingTimeInterval(-36 * 3600) }
             DispatchQueue.main.async {
                 guard let self = self else { return }; self.sleep = recent
                 self.sleepHistory = episodes.map { MetricPoint(date: Calendar.current.startOfDay(for: $0.end), value: $0.seconds / 3600) }
+                if let recent = recent {
+                    for metric in self.metrics.filter({ ["heart", "hrv"].contains($0.id) }) {
+                        self.expected += 1; self.readNight(metric: metric, episode: recent)
+                    }
+                }
                 self.finish()
             }
+        }
+        store.execute(query)
+    }
+    private func readNight(metric: HealthMetric, episode: SleepEpisode) {
+        let predicate = HKQuery.predicateForSamples(withStart: episode.start, end: episode.end, options: [.strictStartDate, .strictEndDate])
+        let query = HKSampleQuery(sampleType: metric.type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] _, samples, _ in
+            let all = samples as? [HKQuantitySample] ?? []
+            let watch = all.filter { $0.device?.model?.localizedCaseInsensitiveContains("Watch") == true || $0.sourceRevision.productType?.hasPrefix("Watch") == true }
+            let chosen = watch.isEmpty ? all : watch
+            let points = Dictionary(grouping: chosen, by: { $0.startDate }).compactMap { date, group -> MetricPoint? in
+                let values = group.map { $0.quantity.doubleValue(for: metric.unit) * metric.scale }.filter { $0.isFinite }
+                guard !values.isEmpty else { return nil }
+                return MetricPoint(date: date, value: values.reduce(0, +) / Double(values.count))
+            }.sorted { $0.date < $1.date }
+            DispatchQueue.main.async { guard let self = self else { return }; self.nightReadings[metric.id] = points; self.finish() }
         }
         store.execute(query)
     }

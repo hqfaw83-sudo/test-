@@ -3,7 +3,7 @@ import Charts
 
 struct WellnessHub: View {
     @EnvironmentObject private var health: WellnessReader
-    @State private var page = 0
+    @State private var page = ProcessInfo.processInfo.arguments.contains("--preview-analysis") ? 1 : ProcessInfo.processInfo.arguments.contains("--preview-metrics") ? 2 : 0
     @State private var days = 7
     @State private var search = ""
     @State private var selected: HealthMetric?
@@ -185,9 +185,28 @@ struct SleepSummaryCard: View {
                     }
                     Text("来源：\(sleep.source.components(separatedBy: " · ").first ?? sleep.source)").font(.caption2).foregroundColor(.secondary)
                     Text("展示每个日期结束的最长睡眠段，优先使用手表来源；清醒不计入睡眠时长。").font(.caption2).foregroundColor(.secondary)
+                    ForEach(health.metrics.filter { ["heart", "hrv"].contains($0.id) }) { metric in
+                        NightMetricChart(metric: metric, points: health.nightReadings[metric.id] ?? [])
+                    }
                 }
             } else { Text("暂无可读睡眠记录").font(.subheadline).foregroundColor(.secondary) }
         }.frame(maxWidth: .infinity, alignment: .leading).padding(20).glass(radius: 25)
+    }
+}
+struct NightMetricChart: View {
+    let metric: HealthMetric
+    let points: [MetricPoint]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("睡眠时段 · " + metric.title, systemImage: metric.symbol).font(.caption.weight(.semibold)).foregroundColor(metric.color)
+            if points.isEmpty { Text("暂无该时段可读采样").font(.caption2).foregroundColor(.secondary) }
+            else {
+                let values = points.map { $0.value }
+                Text("均值 \(metric.text(values.reduce(0, +) / Double(values.count))) · 最低 \(metric.text(values.min())) · 最高 \(metric.text(values.max())) \(metric.unitLabel)").font(.system(size: 10)).foregroundColor(.secondary)
+                HealthTrendChart(metric: metric, points: points).frame(height: 110)
+                Text("按该睡眠起止时段内采样计算，可能包含清醒阶段；优先使用手表数据。").font(.system(size: 9)).foregroundColor(.secondary)
+            }
+        }.padding(.top, 8)
     }
 }
 struct CardEditor: View {
