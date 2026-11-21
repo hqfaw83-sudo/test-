@@ -10,6 +10,7 @@ struct Report {
     var days = 0, excluded = 0
     var week: [DayTotal] = []
     var devices: [DeviceTotal] = []
+    var todayDevices: [DeviceTotal] = []
     var history: [DayTotal] = []
     var first: Date?, last: Date?
 }
@@ -50,6 +51,13 @@ enum Calculator {
             return DayTotal(date: date, seconds: daily[date, default: 0])
         }
         report.devices = Dictionary(grouping: items, by: { $0.name }).map {
+            DeviceTotal(name: $0.key, seconds: duration(merge($0.value)))
+        }.sorted { $0.seconds > $1.seconds }
+        let todayItems = items.compactMap { item -> ListenRange? in
+            let start = max(today, item.start), end = min(now, item.end)
+            return end > start ? ListenRange(start: start, end: end, name: item.name) : nil
+        }
+        report.todayDevices = Dictionary(grouping: todayItems, by: { $0.name }).map {
             DeviceTotal(name: $0.key, seconds: duration(merge($0.value)))
         }.sorted { $0.seconds > $1.seconds }
         return report
