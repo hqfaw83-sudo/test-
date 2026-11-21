@@ -31,3 +31,22 @@ jobs:
         with:
           name: AirPodsHealthProbe-unsigned
           path: AirPodsHealthProbe-unsigned.ipa
+      - name: Render light and dark previews
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if "iPhone" in x["name"]))')
+          xcrun simctl boot "$DEVICE" || true
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcodebuild -project AirPodsHealthProbe.xcodeproj -scheme AirPodsHealthProbe -configuration Release -destination "id=$DEVICE" -derivedDataPath simulator CODE_SIGNING_ALLOWED=NO build
+          xcrun simctl install "$DEVICE" simulator/Build/Products/Release-iphonesimulator/AirPodsHealthProbe.app
+          xcrun simctl status_bar "$DEVICE" override --time '9:41' --batteryState charged --batteryLevel 100
+          xcrun simctl ui "$DEVICE" appearance light
+          xcrun simctl launch "$DEVICE" com.airpodsprobe.healthtest --ui-preview
+          sleep 4
+          xcrun simctl io "$DEVICE" screenshot preview-light.png
+          xcrun simctl ui "$DEVICE" appearance dark
+          sleep 2
+          xcrun simctl io "$DEVICE" screenshot preview-dark.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Interface-previews
+          path: preview-*.png
