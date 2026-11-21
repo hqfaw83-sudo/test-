@@ -29,7 +29,9 @@ final class PersonalStyle: ObservableObject {
 struct GlassDashboard: View {
     @StateObject private var health = HealthReader()
     @StateObject private var style = PersonalStyle()
-    @State private var tab = ProcessInfo.processInfo.arguments.contains("--preview-stats") ? 1 : ProcessInfo.processInfo.arguments.contains("--preview-devices") ? 2 : 0
+    @StateObject private var wellness = WellnessReader()
+    @StateObject private var connection = ConnectionMonitor()
+    @State private var tab = ProcessInfo.processInfo.arguments.contains("--preview-health") ? 3 : ProcessInfo.processInfo.arguments.contains("--preview-stats") ? 1 : ProcessInfo.processInfo.arguments.contains("--preview-devices") ? 2 : 0
     @State private var settings = false
     @Environment(\.scenePhase) private var phase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -42,33 +44,35 @@ struct GlassDashboard: View {
             ScrollView {
                 VStack(spacing: 18) {
                     HStack {
-                        Text(["今天", "统计", "设备"][tab]).font(.system(size: 17, weight: .semibold))
+                        Text(["今天", "统计", "设备", "健康"][tab]).font(.system(size: 17, weight: .semibold))
                         Spacer()
                         Button { settings = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 38, height: 38).glass(radius: 19) }.accessibilityLabel("外观和设置")
                     }.padding(.horizontal, 4)
                     if tab == 0 { GlassToday(health: health, style: style, animate: motion && !reduceMotion && phase == .active) }
                     if tab == 1 { GlassStats(health: health, animate: motion && !reduceMotion) }
+                    if tab == 3 { WellnessHub() }
                     if tab == 2 { GlassDevices(health: health, style: style, animate: motion && !reduceMotion) }
                 }.padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 20)
                     .frame(maxWidth: 620).frame(maxWidth: .infinity)
-            }.refreshable { health.refresh() }
+            }.refreshable { health.refresh(); wellness.refreshIfRequested(); connection.refresh() }
         }
         .safeAreaInset(edge: .bottom) { navigation.padding(.bottom, 8) }
         .foregroundColor(.white).preferredColorScheme(.dark)
         .sheet(isPresented: $settings) { GlassSettings(health: health, theme: $theme, motion: $motion, photoData: $photoData) }
-        .task { if !ProcessInfo.processInfo.arguments.contains("--ui-preview") { health.connect() } }
-        .onChange(of: phase) { value in if value == .active { health.refresh() } }
+        .environmentObject(wellness).environmentObject(connection)
+        .task { if !ProcessInfo.processInfo.arguments.contains("--ui-preview") { health.connect(); wellness.refreshIfRequested() }; connection.refresh() }
+        .onChange(of: phase) { value in if value == .active && !ProcessInfo.processInfo.arguments.contains("--ui-preview") { health.refresh(); wellness.refreshIfRequested(); connection.refresh() } }
     }
     private var navigation: some View {
         HStack(spacing: 4) {
-            ForEach(0..<3) { index in
+            ForEach(0..<4) { index in
                 Button {
                     withAnimation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8)) { tab = index }
                 } label: {
                     VStack(spacing: 5) {
-                        Image(systemName: ["square.grid.2x2", "chart.bar.fill", "airpodspro"][index]).font(.system(size: 20, weight: .medium))
-                        Text(["今天", "统计", "设备"][index]).font(.system(size: 10, weight: .semibold))
-                    }.frame(width: 85, height: 57)
+                        Image(systemName: ["square.grid.2x2", "chart.bar.fill", "airpodspro", "heart.text.square"][index]).font(.system(size: 20, weight: .medium))
+                        Text(["今天", "统计", "设备", "健康"][index]).font(.system(size: 10, weight: .semibold))
+                    }.frame(width: 69, height: 57)
                         .foregroundColor(tab == index ? ice : .white.opacity(0.5))
                         .background { if tab == index { Capsule().fill(Color.white.opacity(0.10)).overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)) } }
                 }.buttonStyle(.plain).accessibilityAddTraits(tab == index ? .isSelected : [])
@@ -113,6 +117,7 @@ struct GlassToday: View {
     @State private var calendarSheet = false
     var body: some View {
         VStack(spacing: 16) {
+            AudioConnectionCard()
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 7) {
@@ -251,6 +256,8 @@ struct GlassDevices: View {
     var devices: [DeviceTotal] { health.report.devices }
     var body: some View {
         VStack(spacing: 14) {
+            AudioConnectionCard()
+            WatchCompanionCard()
             ZStack {
                 ParticleHalo(animate: animate).frame(height: 220)
                 VStack(spacing: 7) {
@@ -341,6 +348,8 @@ struct MoodCalendar: View {
     private func move(_ n: Int) { if let date = Calendar.current.date(byAdding: .month, value: n, to: month) { month = date } }
 }
 struct GlassSettings: View {
+    @EnvironmentObject private var wellness: WellnessReader
+    @EnvironmentObject private var connection: ConnectionMonitor
     @ObservedObject var health: HealthReader
     @Binding var theme: Int
     @Binding var motion: Bool
@@ -357,6 +366,18 @@ struct GlassSettings: View {
                     Toggle("重力与粒子动效", isOn: $motion)
                     Text("耳机与心情会随倾斜移动并相互碰撞。系统开启“减弱动态效果”时自动静止。").font(.caption).foregroundColor(.secondary)
                 }
+                Section("耳机连接") {
+                    Text(connection.audioName ?? "未检测到蓝牙音频输出")
+                    Button("刷新连接状态") { connection.refresh() }
+                    if connection.audioName != nil && !connection.isAirPods { Button("这是我的 AirPods") { connection.confirmAirPods() } }
+                    if connection.isAirPods { Button("取消手动识别") { connection.forgetConfirmation() } }
+                    Text("以当前音频输出判断连接；闲置但已配对的耳机可能无法检测。改名后的耳机可手动确认。").font(.caption).foregroundColor(.secondary)
+                }
+                Section("睡眠与身体指标") {
+                    Button("连接或调整健康授权") { wellness.connect() }.disabled(wellness.busy)
+                    Button("刷新健康指标") { wellness.refreshIfRequested() }.disabled(wellness.busy)
+                    Text("只读取你允许的项目。没有授权或没有记录的指标显示为空；陪伴日期可在设备页调整。").font(.caption).foregroundColor(.secondary)
+                }
                 Section("健康数据") {
                     Button("刷新聆听记录") { health.loaded ? health.refresh() : health.connect() }.disabled(health.busy)
                     Button("重新请求健康授权") { health.connect() }.disabled(health.busy)
@@ -369,7 +390,7 @@ struct GlassSettings: View {
                     Text("排除其他耳机或无法识别设备的记录：\(health.report.excluded) 条").font(.caption)
                     Text("健康记录、照片、心情均在本机处理，不上传。").font(.caption).foregroundColor(ice)
                     Link("Apple 官方产品图片来源", destination: URL(string: "https://www.apple.com/airpods/compare/")!).font(.caption)
-                    Text("聆听时光 1.3.2 · 官方素材版").font(.caption).foregroundColor(.secondary)
+                    Text("聆听时光 1.4.0 · 健康与陪伴").font(.caption).foregroundColor(.secondary)
                 }
             }.navigationTitle("外观与设置").navigationBarTitleDisplayMode(.inline)
         }.preferredColorScheme(.dark)

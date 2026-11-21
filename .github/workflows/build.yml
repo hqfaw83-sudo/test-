@@ -17,7 +17,9 @@ jobs:
           python3 download_artwork.py
           xcodegen generate
       - name: Verify listening calculations
-        run: python3 check_math.py
+        run: |
+          python3 check_math.py
+          python3 check_wellness.py
       - name: Compile unsigned device app
         run: >-
           xcodebuild -project AirPodsHealthProbe.xcodeproj
@@ -61,6 +63,10 @@ jobs:
           xcrun simctl launch "$DEVICE" com.airpodsprobe.healthtest --ui-preview --preview-icons
           sleep 2
           xcrun simctl io "$DEVICE" screenshot preview-icons.png
+          xcrun simctl terminate "$DEVICE" com.airpodsprobe.healthtest
+          xcrun simctl launch "$DEVICE" com.airpodsprobe.healthtest --ui-preview --preview-health
+          sleep 2
+          xcrun simctl io "$DEVICE" screenshot preview-health.png
           swift verify_previews.swift
       - uses: actions/upload-artifact@v4
         with:
