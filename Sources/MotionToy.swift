@@ -65,13 +65,14 @@ final class ToyPhysics: ObservableObject {
     deinit { timer?.invalidate(); motion?.stopDeviceMotionUpdates() }
 }
 struct GravityToy: View {
-    let mood: String, symbol: String
+    let mood: String
+    let model: PodModel
     let enabled: Bool
     @StateObject private var physics = ToyPhysics()
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Image(systemName: symbol).resizable().scaledToFit().foregroundStyle(LinearGradient(colors: [.white, Color(white: 0.65)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                PodsArtwork(model: model, showsCase: false)
                     .frame(width: 94, height: 105).rotationEffect(.degrees(physics.tilt))
                     .shadow(color: .black.opacity(0.3), radius: 10, y: 9)
                     .position(physics.points[0]).gesture(drag(0))

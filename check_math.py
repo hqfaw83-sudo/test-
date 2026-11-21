@@ -37,3 +37,20 @@ print("Listening calculation checks passed")
 '''
 Path('/tmp/ListeningMathCheck.swift').write_text('import Foundation\n' + math + checks)
 subprocess.run(['swift', '/tmp/ListeningMathCheck.swift'], check=True)
+
+model = Path('Sources/PodModel.swift').read_text()
+icon_checks = r'''
+assert(PodModel.detect("AirPods 4") == .fourth)
+assert(PodModel.detect("AirPods 5 (Wireless Charging)") == .fifth)
+assert(PodModel.detect("AirPods Pro 2") == .pro2)
+assert(PodModel.detect("AirPods Pro (2nd generation)") == .pro2)
+assert(PodModel.detect("AirPods Pro 第三代") == .pro3)
+assert(PodModel.detect("AirPods Max 2") == .max2)
+assert(PodModel.detect("AirPods 2") == .classic)
+assert(PodModel.detect("AirPods 2024") == .airpods)
+assert(PodModel.detect("AirPods") == .airpods)
+assert(PodModel.detect("我的耳机") == .airpods)
+print("Headphone icon matching checks passed")
+'''
+Path('/tmp/PodModelCheck.swift').write_text(model + icon_checks)
+subprocess.run(['swift', '/tmp/PodModelCheck.swift'], check=True)

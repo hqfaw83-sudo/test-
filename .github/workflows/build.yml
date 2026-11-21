@@ -54,6 +54,10 @@ jobs:
           xcrun simctl launch "$DEVICE" com.airpodsprobe.healthtest --ui-preview --preview-devices
           sleep 2
           xcrun simctl io "$DEVICE" screenshot preview-devices.png
+          xcrun simctl terminate "$DEVICE" com.airpodsprobe.healthtest
+          xcrun simctl launch "$DEVICE" com.airpodsprobe.healthtest --ui-preview --preview-icons
+          sleep 2
+          xcrun simctl io "$DEVICE" screenshot preview-icons.png
           swift verify_previews.swift
       - uses: actions/upload-artifact@v4
         with:

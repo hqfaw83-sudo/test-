@@ -16,11 +16,16 @@ func dayKey(_ date: Date) -> String {
 final class PersonalStyle: ObservableObject {
     @Published var moods: [String: String] = UserDefaults.standard.dictionary(forKey: "dailyMoods") as? [String: String] ?? [:]
     @Published var colors: [String: Int] = UserDefaults.standard.dictionary(forKey: "deviceColors") as? [String: Int] ?? [:]
+    @Published var icons: [String: String] = UserDefaults.standard.dictionary(forKey: "deviceIcons") as? [String: String] ?? [:]
     var todayMood: String { moods[dayKey(Date())] ?? "😌" }
     func setMood(_ mood: String, on date: Date = Date()) { moods[dayKey(date)] = mood; UserDefaults.standard.set(moods, forKey: "dailyMoods") }
     func setColor(_ color: Int, for name: String) { colors[name] = color; UserDefaults.standard.set(colors, forKey: "deviceColors") }
+    func icon(for name: String) -> PodModel { icons[name].flatMap(PodModel.init(rawValue:)) ?? PodModel.detect(name) }
+    func setIcon(_ model: PodModel?, for name: String) { icons[name] = model?.rawValue; UserDefaults.standard.set(icons, forKey: "deviceIcons") }
 }
-@main struct ListeningApp: App { var body: some Scene { WindowGroup { GlassDashboard() } } }
+@main struct ListeningApp: App {
+    var body: some Scene { WindowGroup { if ProcessInfo.processInfo.arguments.contains("--preview-icons") { IconGallery() } else { GlassDashboard() } } }
+}
 struct GlassDashboard: View {
     @StateObject private var health = HealthReader()
     @StateObject private var style = PersonalStyle()
@@ -120,7 +125,7 @@ struct GlassToday: View {
                     Spacer()
                     Button { health.loaded ? health.refresh() : health.connect() } label: { Image(systemName: "arrow.clockwise").frame(width: 38, height: 38).background(.white.opacity(0.07), in: Circle()) }.disabled(health.busy).accessibilityLabel("刷新聆听记录")
                 }
-                GravityToy(mood: style.todayMood, symbol: symbolFor(health.report.todayDevices.first?.name ?? health.report.devices.first?.name ?? "AirPods"), enabled: animate)
+                GravityToy(mood: style.todayMood, model: style.icon(for: health.report.todayDevices.first?.name ?? health.report.devices.first?.name ?? "AirPods"), enabled: animate)
                     .frame(height: 245).padding(.top, 4)
                 HStack {
                     Button { moodSheet = true } label: { Label("记录心情", systemImage: "face.smiling").font(.system(size: 11)).foregroundColor(.white.opacity(0.65)) }
@@ -136,7 +141,7 @@ struct GlassToday: View {
                 }.minimumScaleFactor(0.6).lineLimit(1)
                 Divider().overlay(.white.opacity(0.05)).padding(.vertical, 18)
                 HStack(spacing: 12) {
-                    Image(systemName: symbolFor(health.report.todayDevices.first?.name ?? "AirPods")).font(.system(size: 26)).foregroundColor(ice)
+                    PodsArtwork(model: style.icon(for: health.report.todayDevices.first?.name ?? "AirPods"), showsCase: false).frame(width: 34, height: 34)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("今天用得最多").font(.system(size: 9)).foregroundColor(.white.opacity(0.45))
                         Text(health.report.todayDevices.first?.name ?? "等待今日的聆听记录").font(.system(size: 12, weight: .semibold))
@@ -242,6 +247,7 @@ struct GlassDevices: View {
     let animate: Bool
     @State private var index = 0
     @State private var editColor = false
+    @State private var editIcon = false
     var devices: [DeviceTotal] { health.report.devices }
     var body: some View {
         VStack(spacing: 14) {
@@ -258,14 +264,14 @@ struct GlassDevices: View {
                 TabView(selection: $index) {
                     ForEach(Array(devices.enumerated()), id: \.element.id) { i, device in
                         VStack(alignment: .leading, spacing: 18) {
-                            HStack { Text(device.name).font(.system(size: 14, weight: .semibold)); Spacer(); Button { editColor = true } label: { Image(systemName: "paintpalette").font(.caption) }.accessibilityLabel("更改卡片颜色") }
-                            PodsArtwork(name: device.name).frame(height: 140).frame(maxWidth: .infinity)
+                            HStack { Text(device.name).font(.system(size: 14, weight: .semibold)); Spacer(); Button { editIcon = true } label: { Image(systemName: "earbuds").font(.caption) }.accessibilityLabel("选择耳机图标"); Button { editColor = true } label: { Image(systemName: "paintpalette").font(.caption) }.accessibilityLabel("更改卡片颜色") }
+                            PodsArtwork(name: device.name, model: style.icon(for: device.name)).frame(height: 140).frame(maxWidth: .infinity)
                             Text(timeText(device.seconds)).font(.system(size: 29, weight: .bold, design: .rounded)).minimumScaleFactor(0.5).lineLimit(1)
                             Text("\(Int(device.seconds / max(1, health.report.total) * 100))% 的累计聆听时间").font(.system(size: 10)).foregroundColor(.white.opacity(0.6))
                         }.padding(24).background(cardColors[max(0, min(cardColors.count - 1, style.colors[device.name] ?? i % cardColors.count))].opacity(0.25)).glass(radius: 30).padding(.horizontal, 8).tag(i)
                     }
                 }.tabViewStyle(.page(indexDisplayMode: .always)).frame(height: 430)
-                Text("左右切换耳机 · 点击调色盘自定义配色").font(.system(size: 10)).foregroundColor(.white.opacity(0.4))
+                Text("左右切换耳机 · 点击耳机按钮选图标").font(.system(size: 10)).foregroundColor(.white.opacity(0.4))
             }
             Text("按健康记录中的设备名称归类。同名耳机会合并；各设备分别去重，总计跨设备去重，因此分项之和可能大于总计。").font(.system(size: 10)).foregroundColor(.white.opacity(0.35)).padding(.horizontal, 12)
         }
@@ -279,23 +285,23 @@ struct GlassDevices: View {
                 }
             }.padding(30).presentationDetents([.medium]).preferredColorScheme(.dark)
         }
-    }
-}
-struct PodsArtwork: View {
-    let name: String
-    var body: some View {
-        ZStack {
-            if name.localizedCaseInsensitiveContains("Max") {
-                Image(systemName: "airpodsmax").resizable().scaledToFit().foregroundStyle(LinearGradient(colors: [.white, Color(red: 0.66, green: 0.67, blue: 0.76)], startPoint: .topLeading, endPoint: .bottomTrailing)).padding(8)
-            } else {
-                VStack(spacing: -9) {
-                    Image(systemName: symbolFor(name)).resizable().scaledToFit().foregroundStyle(LinearGradient(colors: [.white, .white.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 94, height: 74)
-                    RoundedRectangle(cornerRadius: 24).fill(LinearGradient(colors: [.white, Color(white: 0.7), .white], startPoint: .topLeading, endPoint: .bottomTrailing)).frame(width: 109, height: 67)
-                        .overlay(alignment: .top) { Capsule().fill(.black.opacity(0.15)).frame(width: 88, height: 1).offset(y: 12) }
-                        .overlay { Circle().fill(Color.green.opacity(0.65)).frame(width: 3, height: 3) }
-                }
-            }
-        }.shadow(color: .black.opacity(0.4), radius: 18, y: 12).accessibilityLabel("\(name) 耳机示意图")
+        .sheet(isPresented: $editIcon) {
+            NavigationStack {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        Text("健康记录可能使用通用名称。可为这组记录选择对应外观，不会更改聆听数据。").font(.caption).foregroundColor(.secondary)
+                        Button("恢复自动识别") { if devices.indices.contains(index) { style.setIcon(nil, for: devices[index].name) }; editIcon = false }
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                            ForEach(PodModel.allCases) { model in
+                                Button { if devices.indices.contains(index) { style.setIcon(model, for: devices[index].name) }; editIcon = false } label: {
+                                    VStack { PodsArtwork(model: model).frame(height: 95); Text(model.title).font(.system(size: 10)).lineLimit(1).minimumScaleFactor(0.6) }.padding(6).glass(radius: 16)
+                                }.buttonStyle(.plain)
+                            }
+                        }
+                    }.padding(20)
+                }.navigationTitle("选择耳机图标").navigationBarTitleDisplayMode(.inline)
+            }.preferredColorScheme(.dark)
+        }
     }
 }
 struct MoodPicker: View {
@@ -362,7 +368,7 @@ struct GlassSettings: View {
                     Text("仅计入可识别为 AirPods 的耳机音频记录，合并重叠时间，跨日按本地日历拆分。佩戴但没有音频的时间可能无法记录。").font(.caption)
                     Text("排除其他耳机或无法识别设备的记录：\(health.report.excluded) 条").font(.caption)
                     Text("健康记录、照片、心情均在本机处理，不上传。").font(.caption).foregroundColor(ice)
-                    Text("聆听时光 1.3.0 · 玻璃版").font(.caption).foregroundColor(.secondary)
+                    Text("聆听时光 1.3.1 · 玻璃版").font(.caption).foregroundColor(.secondary)
                 }
             }.navigationTitle("外观与设置").navigationBarTitleDisplayMode(.inline)
         }.preferredColorScheme(.dark)
