@@ -31,7 +31,8 @@ struct GlassDashboard: View {
     @StateObject private var style = PersonalStyle()
     @StateObject private var wellness = WellnessReader()
     @StateObject private var connection = ConnectionMonitor()
-    @State private var tab = ProcessInfo.processInfo.arguments.contains("--preview-health") ? 3 : ProcessInfo.processInfo.arguments.contains("--preview-stats") ? 1 : ProcessInfo.processInfo.arguments.contains("--preview-devices") ? 2 : 0
+    @StateObject private var music = MusicReader()
+    @State private var tab = ProcessInfo.processInfo.arguments.contains("--preview-music") ? 4 : ProcessInfo.processInfo.arguments.contains("--preview-health") ? 3 : ProcessInfo.processInfo.arguments.contains("--preview-stats") ? 1 : ProcessInfo.processInfo.arguments.contains("--preview-devices") ? 2 : 0
     @State private var settings = false
     @Environment(\.scenePhase) private var phase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -44,12 +45,13 @@ struct GlassDashboard: View {
             ScrollView {
                 VStack(spacing: 18) {
                     HStack {
-                        Text(["今天", "统计", "设备", "健康"][tab]).font(.system(size: 17, weight: .semibold))
+                        Text(["今天", "统计", "设备", "健康", "音乐"][tab]).font(.system(size: 17, weight: .semibold))
                         Spacer()
                         Button { settings = true } label: { Image(systemName: "slider.horizontal.3").frame(width: 38, height: 38).glass(radius: 19) }.accessibilityLabel("外观和设置")
                     }.padding(.horizontal, 4)
                     if tab == 0 { GlassToday(health: health, style: style, animate: motion && !reduceMotion && phase == .active) }
                     if tab == 1 { GlassStats(health: health, animate: motion && !reduceMotion) }
+                    if tab == 4 { MusicPage() }
                     if tab == 3 { WellnessHub() }
                     if tab == 2 { GlassDevices(health: health, style: style, animate: motion && !reduceMotion) }
                 }.padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 20)
@@ -59,25 +61,25 @@ struct GlassDashboard: View {
         .safeAreaInset(edge: .bottom) { navigation.padding(.bottom, 8) }
         .foregroundColor(.white).preferredColorScheme(.dark)
         .sheet(isPresented: $settings) { GlassSettings(health: health, theme: $theme, motion: $motion, photoData: $photoData) }
-        .environmentObject(wellness).environmentObject(connection)
+        .environmentObject(wellness).environmentObject(connection).environmentObject(music)
         .task { if !ProcessInfo.processInfo.arguments.contains("--ui-preview") { health.connect(); wellness.refreshIfRequested() }; connection.refresh() }
         .onChange(of: phase) { value in if value == .active && !ProcessInfo.processInfo.arguments.contains("--ui-preview") { health.refresh(); wellness.refreshIfRequested(); connection.refresh() } }
     }
     private var navigation: some View {
         HStack(spacing: 4) {
-            ForEach(0..<4) { index in
+            ForEach(0..<5) { index in
                 Button {
                     withAnimation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8)) { tab = index }
                 } label: {
                     VStack(spacing: 5) {
-                        Image(systemName: ["square.grid.2x2", "chart.bar.fill", "airpodspro", "heart.text.square"][index]).font(.system(size: 20, weight: .medium))
-                        Text(["今天", "统计", "设备", "健康"][index]).font(.system(size: 10, weight: .semibold))
-                    }.frame(width: 69, height: 57)
+                        Image(systemName: ["square.grid.2x2", "chart.bar.fill", "airpodspro", "heart.text.square", "music.note"][index]).font(.system(size: 20, weight: .medium))
+                        Text(["今天", "统计", "设备", "健康", "音乐"][index]).font(.system(size: 10, weight: .semibold))
+                    }.frame(maxWidth: .infinity).frame(height: 57)
                         .foregroundColor(tab == index ? ice : .white.opacity(0.5))
                         .background { if tab == index { Capsule().fill(Color.white.opacity(0.10)).overlay(Capsule().stroke(Color.white.opacity(0.14), lineWidth: 1)) } }
                 }.buttonStyle(.plain).accessibilityAddTraits(tab == index ? .isSelected : [])
             }
-        }.padding(5).glass(radius: 40).padding(.horizontal, 30)
+        }.padding(5).frame(maxWidth: 420).glass(radius: 40).padding(.horizontal, 20)
     }
 }
 struct GlassBackdrop: View {
@@ -422,7 +424,7 @@ struct GlassSettings: View {
                     Text("排除其他耳机或无法识别设备的记录：\(health.report.excluded) 条").font(.caption)
                     Text("健康记录、照片、心情均在本机处理，不上传。").font(.caption).foregroundColor(ice)
                     Link("Apple 官方产品图片来源", destination: URL(string: "https://www.apple.com/airpods/compare/")!).font(.caption)
-                    Text("聆听时光 1.4.1 · 自定义心情").font(.caption).foregroundColor(.secondary)
+                    Text("聆听时光 1.5.0 · 音乐与心情").font(.caption).foregroundColor(.secondary)
                 }
             }.navigationTitle("外观与设置").navigationBarTitleDisplayMode(.inline)
         }.preferredColorScheme(.dark)
