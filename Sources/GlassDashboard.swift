@@ -264,7 +264,7 @@ struct GlassDevices: View {
                             Text("\(Int(device.seconds / max(1, health.report.total) * 100))% 的累计聆听时间").font(.system(size: 10)).foregroundColor(.white.opacity(0.6))
                         }.padding(24).background(cardColors[max(0, min(cardColors.count - 1, style.colors[device.name] ?? i % cardColors.count))].opacity(0.25)).glass(radius: 30).padding(.horizontal, 8).tag(i)
                     }
-                }.tabViewStyle(.page(indexDisplayMode: .always)).frame(height: 365)
+                }.tabViewStyle(.page(indexDisplayMode: .always)).frame(height: 430)
                 Text("左右切换耳机 · 点击调色盘自定义配色").font(.system(size: 10)).foregroundColor(.white.opacity(0.4))
             }
             Text("按健康记录中的设备名称归类。同名耳机会合并；各设备分别去重，总计跨设备去重，因此分项之和可能大于总计。").font(.system(size: 10)).foregroundColor(.white.opacity(0.35)).padding(.horizontal, 12)
@@ -388,3 +388,4 @@ extension View {
             .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
     }
 }
+
