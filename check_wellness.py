@@ -26,5 +26,5 @@ print("Sleep deduplication, source selection, awake exclusion and companion date
 '''
 with tempfile.TemporaryDirectory() as temp:
     script = Path(temp) / 'check.swift'
-    script.write_text(source + tests)
+    script.write_text(source + tests + Path('Sources/WatchModel.swift').read_text() + '\nassert(WatchModel.name(for: \"Watch7,5\") == \"Apple Watch Ultra 2 · 49 mm\")\nassert(WatchModel.name(for: \"Watch7,10\") == \"Apple Watch Series 10 · 42 mm\")\nassert(WatchModel.name(for: \"Watch99,9\") == nil)\n')
     subprocess.run(['swift', str(script)], check=True)

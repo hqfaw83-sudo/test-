@@ -113,7 +113,7 @@ struct GlassToday: View {
     @ObservedObject var health: HealthReader
     @ObservedObject var style: PersonalStyle
     let animate: Bool
-    @State private var moodSheet = false
+    @State private var moodSheet = ProcessInfo.processInfo.arguments.contains("--preview-mood")
     @State private var calendarSheet = false
     var body: some View {
         VStack(spacing: 16) {
@@ -135,7 +135,7 @@ struct GlassToday: View {
                 HStack {
                     Button { moodSheet = true } label: { Label("记录心情", systemImage: "face.smiling").font(.system(size: 11)).foregroundColor(.white.opacity(0.65)) }
                     Spacer()
-                    Text(animate ? "轻轻倾斜，声音也有重力" : "静静听，也很好").font(.system(size: 9)).foregroundColor(.white.opacity(0.35))
+                    Text(animate ? "耳机居中，表情跟着你动" : "静静听，也很好").font(.system(size: 9)).foregroundColor(.white.opacity(0.35))
                 }.padding(.bottom, 24)
                 Text("今日佩戴时长 · 音频记录").font(.system(size: 11)).foregroundColor(.white.opacity(0.6))
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -314,14 +314,46 @@ struct GlassDevices: View {
 struct MoodPicker: View {
     @ObservedObject var style: PersonalStyle
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("customMoodImage") private var customImage = Data()
+    @AppStorage("useCustomMoodImage") private var useCustom = false
+    @State private var photo: PhotosPickerItem?
+    @State private var loading = false
+    @State private var error = ""
     var body: some View {
-        VStack(spacing: 24) {
+        ScrollView { VStack(spacing: 24) {
             Text("今天，心情是什么颜色？").font(.title3.bold())
-            Text("每天留一个表情，只保存在手机里。").font(.caption).foregroundColor(.secondary)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 18) {
-                ForEach(moodOptions, id: \.self) { mood in Button { style.setMood(mood); dismiss() } label: { Text(mood).font(.system(size: 36)).frame(width: 58, height: 58).background(.white.opacity(style.todayMood == mood ? 0.14 : 0.035), in: RoundedRectangle(cornerRadius: 18)) } }
+            Text("选一个表情，或上传自己的图片，只保存在手机里。").font(.caption).foregroundColor(.secondary)
+            if let image = UIImage(data: customImage) {
+                HStack(spacing: 16) {
+                    Image(uiImage: image).resizable().scaledToFit().frame(width: 64, height: 64)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(useCustom ? "正在使用自定义表情" : "已保存的自定义表情").font(.caption)
+                        Button("使用这张表情") { useCustom = true; dismiss() }.font(.caption)
+                        Button("移除图片", role: .destructive) { customImage = Data(); useCustom = false }.font(.caption)
+                    }
+                }.frame(maxWidth: .infinity).padding(14).background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
             }
-        }.padding(25).presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+            PhotosPicker(selection: $photo, matching: .images) {
+                Label(loading ? "正在处理图片…" : "从相册上传自定义表情", systemImage: "photo.badge.plus").font(.subheadline).frame(maxWidth: .infinity).padding(14)
+            }.buttonStyle(.bordered).tint(ice).disabled(loading)
+            Text("支持透明图片；上传的图片会随倾斜移动，也可拖动。动图使用第一帧。").font(.caption2).foregroundColor(.secondary)
+            if !error.isEmpty { Text(error).font(.caption).foregroundColor(.orange) }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 18) {
+                ForEach(moodOptions, id: \.self) { mood in Button { useCustom = false; style.setMood(mood); dismiss() } label: { Text(mood).font(.system(size: 36)).frame(width: 58, height: 58).background(.white.opacity(!useCustom && style.todayMood == mood ? 0.14 : 0.035), in: RoundedRectangle(cornerRadius: 18)) } }
+            }
+        }.padding(25) }.presentationDetents([.large]).preferredColorScheme(.dark)
+            .onChange(of: photo) { item in
+                Task { @MainActor in
+                    guard let item = item else { return }; loading = true; error = ""
+                    defer { loading = false }
+                    do {
+                        guard let data = try await item.loadTransferable(type: Data.self) else { error = "无法读取图片，请重新选择。"; return }
+                        let prepared = await Task.detached(priority: .userInitiated) { StickerImage.prepare(data) }.value
+                        guard let prepared = prepared else { error = "不支持这张图片，请换一张。"; return }
+                        customImage = prepared; useCustom = true; dismiss()
+                    } catch { self.error = "图片读取失败，请重试。" }
+                }
+            }
     }
 }
 struct MoodCalendar: View {
@@ -364,7 +396,7 @@ struct GlassSettings: View {
                     PhotosPicker(selection: $photo, matching: .images) { Label("选择照片背景", systemImage: "photo") }
                     if !photoError.isEmpty { Text(photoError).font(.caption).foregroundColor(.orange) }
                     Toggle("重力与粒子动效", isOn: $motion)
-                    Text("耳机与心情会随倾斜移动并相互碰撞。系统开启“减弱动态效果”时自动静止。").font(.caption).foregroundColor(.secondary)
+                    Text("耳机固定在中央；表情随倾斜移动，可拖动并与耳机碰撞。系统开启“减弱动态效果”时停止自动移动。").font(.caption).foregroundColor(.secondary)
                 }
                 Section("耳机连接") {
                     Text(connection.audioName ?? "未检测到蓝牙音频输出")
@@ -390,7 +422,7 @@ struct GlassSettings: View {
                     Text("排除其他耳机或无法识别设备的记录：\(health.report.excluded) 条").font(.caption)
                     Text("健康记录、照片、心情均在本机处理，不上传。").font(.caption).foregroundColor(ice)
                     Link("Apple 官方产品图片来源", destination: URL(string: "https://www.apple.com/airpods/compare/")!).font(.caption)
-                    Text("聆听时光 1.4.0 · 健康与陪伴").font(.caption).foregroundColor(.secondary)
+                    Text("聆听时光 1.4.1 · 自定义心情").font(.caption).foregroundColor(.secondary)
                 }
             }.navigationTitle("外观与设置").navigationBarTitleDisplayMode(.inline)
         }.preferredColorScheme(.dark)

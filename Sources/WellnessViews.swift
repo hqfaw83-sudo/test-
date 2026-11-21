@@ -236,6 +236,9 @@ struct WatchCompanionCard: View {
     @EnvironmentObject private var health: WellnessReader
     @EnvironmentObject private var connection: ConnectionMonitor
     @AppStorage("watchCompanionStart") private var override = 0.0
+    @AppStorage("watchModelOverride") private var modelOverride = ""
+    @State private var modelEditing = false
+    @State private var modelDraft = ""
     @State private var editing = false
     @State private var selection = Date()
     private var start: Date? { override > 0 ? Date(timeIntervalSince1970: override) : health.firstWatchRecord }
@@ -246,6 +249,14 @@ struct WatchCompanionCard: View {
                 Spacer()
                 Text(connection.watchPaired.map { $0 ? "已配对" : "未配对" } ?? (health.firstWatchRecord == nil ? "配对状态未确认" : "有历史记录")).font(.caption).foregroundColor(connection.watchPaired == true ? .green : .secondary)
             }
+            Text(modelOverride.isEmpty ? (health.latestWatchModel ?? "型号待确认") : modelOverride)
+                .font(.system(size: 19, weight: .semibold, design: .rounded)).foregroundColor(ice)
+            if modelOverride.isEmpty {
+                if let identifier = health.latestWatchIdentifier {
+                    Text("最近健康记录识别 · \(identifier)").font(.caption2).foregroundColor(.secondary)
+                } else { Text("读取健康记录后识别型号，也可手动选择。").font(.caption2).foregroundColor(.secondary) }
+            } else { Text("你设置的手表型号").font(.caption2).foregroundColor(.secondary) }
+            Button("选择或更正型号") { modelDraft = modelOverride; modelEditing = true }.font(.caption).tint(ice)
             HStack(spacing: 20) {
                 Image(systemName: "applewatch").font(.system(size: 58, weight: .light)).foregroundColor(ice)
                 VStack(alignment: .leading, spacing: 8) {
@@ -261,6 +272,23 @@ struct WatchCompanionCard: View {
                 if !health.requested { Button("读取手表健康记录") { health.connect() }.font(.caption).tint(ice) }
             }
         }.padding(20).glass(radius: 28)
+            .sheet(isPresented: $modelEditing) {
+                NavigationStack {
+                    Form {
+                        Section("手表型号") {
+                            Picker("选择型号", selection: $modelDraft) {
+                                Text("从最近健康记录识别").tag("")
+                                ForEach(WatchModel.choices, id: \.self) { Text($0).tag($0) }
+                                if !modelDraft.isEmpty && !WatchModel.choices.contains(modelDraft) { Text(modelDraft).tag(modelDraft) }
+                            }
+                            TextField("或输入完整型号", text: $modelDraft).autocorrectionDisabled()
+                        }
+                        Text("健康记录可能来自旧手表。换表后请确认此处型号；手动型号和陪伴日期分别设置。").font(.caption).foregroundColor(.secondary)
+                        Link("查看 Apple 官方型号说明", destination: URL(string: "https://support.apple.com/zh-cn/108056")!)
+                    }.navigationTitle("Apple Watch 型号").navigationBarTitleDisplayMode(.inline)
+                        .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("保存") { modelOverride = modelDraft.trimmingCharacters(in: .whitespacesAndNewlines); modelEditing = false } } }
+                }.preferredColorScheme(.dark)
+            }
             .sheet(isPresented: $editing) {
                 NavigationStack {
                     Form {

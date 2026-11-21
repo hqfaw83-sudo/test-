@@ -46,6 +46,9 @@ final class WellnessReader: ObservableObject {
     @Published var nightReadings: [String: [MetricPoint]] = [:]
     @Published var firstWatchRecord: Date?
     @Published var watchRecordName: String?
+    @Published var latestWatchModel: String?
+    @Published var latestWatchIdentifier: String?
+    @Published var latestWatchDate: Date?
     @Published var busy = false
     @Published var message = "连接 Apple 健康，查看睡眠、活动与身体指标。"
     @Published var requested = UserDefaults.standard.bool(forKey: "wellnessRequested")
@@ -90,7 +93,7 @@ final class WellnessReader: ObservableObject {
     func refresh() {
         guard requested else { return }
         guard !busy else { pending = true; return }
-        busy = true; completed = 0; expected = metrics.reduce(0) { $0 + ($1.cumulative ? 1 : 2) } + 2
+        busy = true; completed = 0; expected = metrics.reduce(0) { $0 + ($1.cumulative ? 1 : 2) } + 3
         readings = [:]; sleep = nil; sleepHistory = []; nightReadings = [:]; firstWatchRecord = nil; watchRecordName = nil
         let calendar = Calendar.current, now = Date(), today = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .day, value: -89, to: today)!
@@ -184,6 +187,20 @@ final class WellnessReader: ObservableObject {
             }
         }
         store.execute(query)
+        let latest = HKSampleQuery(sampleType: heart, predicate: NSCompoundPredicate(andPredicateWithSubpredicates: [device, date]), limit: 1, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]) { [weak self] _, samples, _ in
+            let sample = samples?.first
+            let product = sample?.sourceRevision.productType
+            let hardware = sample?.device?.hardwareVersion
+            let name = WatchModel.name(for: product) ?? WatchModel.name(for: hardware)
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.latestWatchModel = name
+                self.latestWatchIdentifier = product ?? hardware
+                self.latestWatchDate = sample?.startDate
+                self.finish()
+            }
+        }
+        store.execute(latest)
     }
     private func finish() {
         completed += 1

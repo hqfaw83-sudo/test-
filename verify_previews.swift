@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-for name in ["preview-light.png", "preview-dark.png", "preview-stats.png", "preview-devices.png", "preview-icons.png", "preview-health.png", "preview-analysis.png", "preview-metrics.png"] {
+for name in ["preview-light.png", "preview-dark.png", "preview-stats.png", "preview-devices.png", "preview-icons.png", "preview-health.png", "preview-analysis.png", "preview-metrics.png", "preview-mood.png"] {
     let data = try Data(contentsOf: URL(fileURLWithPath: name))
     guard let bitmap = NSBitmapImageRep(data: data) else { fatalError("Cannot decode \(name)") }
     var luminance = 0.0
